@@ -43,7 +43,8 @@ results in the creation of this file:
 
 -----
 
-supports: numeric, integer, real, string
+supports arff types: numeric, integer, real, string
+supports python types: int, str, float
 
 in the future: dates
 
@@ -179,7 +180,8 @@ class Reader:
                 break
             
             if line.lower().startswith(RELATION):
-                _, name = line.split()
+                _, relation = line.split()
+                self.relation = relation
             
             if line.lower().startswith(ATTRIBUTE):
                 space_separated = line.split(' ', 2)
@@ -187,6 +189,8 @@ class Reader:
                 field_type_text = space_separated[2].strip()
                 
                 fields.append(_field_type(name, field_type_text))
+        
+        self.fields = fields
         
         # data
         reader = csv.reader(lines_iterator)
@@ -219,28 +223,24 @@ def dump(fname, row_iterator, relation='untitled', names=None):
     w = Writer(fname, relation, names)
     for row in row_iterator:
         w.write(row)
+    w.close()
 
-class Writer:
-    def __init__(self, fname, relation='untitled', names=None):
-        self.fhand = open(fname, 'wb')
-        self._writer = _LineWriter(relation, names)
-        self.relation = relation
-        self.names = names
-        
-    def write(self, row):
-        for line in self._writer.generate_lines(row):
-            line = line + os.linesep
-            self.fhand.write(line.encode('utf-8'))
-        
 class _LineWriter:
     def __init__(self, relation='untitled', names=None):
         self.relation = relation
         self.names = names
         self._first_row = True
+        self.pytypes = dict(PYTHON_TYPES)
+        
     def generate_lines(self, row):
         if self._first_row:
             self._first_row = False
-            ftypes = [PYTHON_TYPES[type(item)] for item in row]
+            ftypes = []
+            for item in row:
+                item_type = type(item)
+                if item_type not in self.pytypes:
+                    raise ValueError("Unknown type: %s" % item_type)
+                ftypes.append(self.pytypes[item_type])
             if self.names is None:
                 self.names = ['attr%d' % i for i in range(len(row))]
         
@@ -254,3 +254,18 @@ class _LineWriter:
         yield _convert_row(row)
         
 
+
+class Writer(_LineWriter):
+    def __init__(self, fname, relation='untitled', names=None):
+        self.fhand = open(fname, 'wb')
+        _LineWriter.__init__(self, relation, names)
+        
+    def write(self, row):
+        for line in self.generate_lines(row):
+            line = line + os.linesep
+            self.fhand.write(line.encode('utf-8'))
+    
+    def close(self):
+        self.fhand.close()
+        
+        
