@@ -155,41 +155,45 @@ def loads(text):
         if type(text) != str:
             raise ValueError('arff.loads works with strings only')
     lines_iterator = io.StringIO(text)
-    for item in reader(lines_iterator):
+    for item in Reader(lines_iterator):
         yield item
 
 
 def load(fname):
     with open(fname, 'r') as fhand:
-        for item in reader(fhand):
+        for item in Reader(fhand):
             yield item
 
-def reader(lines_iterator):
-    fields = []
-    
-    for line in lines_iterator:
-        if line.startswith(COMMENT):
-            continue
+class Reader:
+    def __init__(self, lines_iterator):
+        self.lines_iterator = lines_iterator
+    def __iter__(self):
+        lines_iterator = self.lines_iterator
+        fields = []
         
-        if line.lower().startswith(DATA):
-            break
-        
-        if line.lower().startswith(RELATION):
-            _, name = line.split()
-        
-        if line.lower().startswith(ATTRIBUTE):
-            space_separated = line.split(' ', 2)
-            name = space_separated[1]
-            field_type_text = space_separated[2].strip()
+        for line in lines_iterator:
+            if line.startswith(COMMENT):
+                continue
             
-            fields.append(_field_type(name, field_type_text))
-    
-    # data
-    reader = csv.reader(lines_iterator)
-    row_parser = _RowParser(fields)
-    for row in reader:
-        typed_row = row_parser.parse(row)
-        yield typed_row
+            if line.lower().startswith(DATA):
+                break
+            
+            if line.lower().startswith(RELATION):
+                _, name = line.split()
+            
+            if line.lower().startswith(ATTRIBUTE):
+                space_separated = line.split(' ', 2)
+                name = space_separated[1]
+                field_type_text = space_separated[2].strip()
+                
+                fields.append(_field_type(name, field_type_text))
+        
+        # data
+        reader = csv.reader(lines_iterator)
+        row_parser = _RowParser(fields)
+        for row in reader:
+            typed_row = row_parser.parse(row)
+            yield typed_row
 
 
 def _convert_row(row):
@@ -205,28 +209,48 @@ def dumps(*args, **kwargs):
     
 
 def dump_lines(row_iterator, relation='untitled', names=None):
-    if not hasattr(row_iterator, '__next__'):
-        row_iterator = (item for item in row_iterator)
-    first_row = next(row_iterator)
-    ftypes = [PYTHON_TYPES[type(item)] for item in first_row]
-    if names is None:
-        names = ['attr%d' % i for i in range(len(first_row))]
-    
-    yield "%s %s" % (RELATION, relation)
-    
-    for name, f in zip(names, ftypes):
-        yield "%s %s %s" % (ATTRIBUTE, name, f)
-    
-    yield DATA
-    
-    
-    yield _convert_row(first_row)
+    w = _LineWriter(relation, names)
     for row in row_iterator:
+        for line in w.generate_lines(row):
+            yield line
+    
+
+def dump(fname, row_iterator, relation='untitled', names=None):
+    w = Writer(fname, relation, names)
+    for row in row_iterator:
+        w.write(row)
+
+class Writer:
+    def __init__(self, fname, relation='untitled', names=None):
+        self.fhand = open(fname, 'wb')
+        self._writer = _LineWriter(relation, names)
+        self.relation = relation
+        self.names = names
+        
+    def write(self, row):
+        for line in self._writer.generate_lines(row):
+            line = line + os.linesep
+            self.fhand.write(line.encode('utf-8'))
+        
+class _LineWriter:
+    def __init__(self, relation='untitled', names=None):
+        self.relation = relation
+        self.names = names
+        self._first_row = True
+    def generate_lines(self, row):
+        if self._first_row:
+            self._first_row = False
+            ftypes = [PYTHON_TYPES[type(item)] for item in row]
+            if self.names is None:
+                self.names = ['attr%d' % i for i in range(len(row))]
+        
+            yield "%s %s" % (RELATION, self.relation)
+        
+            for name, f in zip(self.names, ftypes):
+                yield "%s %s %s" % (ATTRIBUTE, name, f)
+        
+            yield DATA
+        
         yield _convert_row(row)
-
-def dump(fname, *args, **kwargs):
-    with open(fname, 'wb') as fhand:
-        for row in dump_lines(*args, **kwargs):
-            fhand.write(row + os.linesep)
-
+        
 
