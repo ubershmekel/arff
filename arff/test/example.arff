@@ -1,0 +1,8 @@
+@relation diabetics_data
+@attribute hair_color string
+@attribute age real
+@attribute patno integer
+@data
+'blonde',17.2,1
+'blue',27.2,2
+'blue',18.2,3
