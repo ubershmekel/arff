@@ -1,3 +1,12 @@
+'''
+Setup.py for arff
+
+First time ever on pypi use:
+    setup.py sdist register upload
+
+'''
+
+
 try:
     from setuptools import setup
 except ImportError:
@@ -6,17 +15,11 @@ except ImportError:
 import os.path
 import sys
 
-CMD_CLASS = None
-try:
-    from googlecode_distutils_upload import upload
-    CMD_CLASS = {'google_upload': upload}
-except Exception:
-    pass
 
 import arff
 DOCUMENTATION = arff.__doc__
 
-VERSION = '0.5'
+VERSION = '0.6'
 
 SETUP_DICT = dict(
     name='arff',
@@ -39,8 +42,13 @@ SETUP_DICT = dict(
     ]
   )
 
-if CMD_CLASS:
+try:
+    # Allows uploading the source dist to google code
+    from googlecode_distutils_upload import upload
+    CMD_CLASS = {'google_upload': upload}
     SETUP_DICT['cmdclass'] = CMD_CLASS
+except Exception:
+    pass
 
 # generate .rst file with documentation
 #open(os.path.join(os.path.dirname(__file__), 'documentation.rst'), 'w').write(DOCUMENTATION)
