@@ -73,7 +73,7 @@ RELATION = '@relation'
 ATTRIBUTE = '@attribute'
 DATA = '@data'
 
-def str_remove_quotes(obj):
+def _str_remove_quotes(obj):
     return str(obj[1:-1])
 
     
@@ -81,7 +81,7 @@ ARFF_TYPES = {
     'numeric': float,
     'integer': int,
     'real': float,
-    'string': str_remove_quotes,
+    'string': _str_remove_quotes,
 }
 
 PYTHON_TYPES = {
@@ -92,7 +92,7 @@ PYTHON_TYPES = {
 }
 
 # python2/3 compatible unicode
-def u(text):
+def _u(text):
     if str == bytes:
         return text.decode('utf-8')
     else:
@@ -121,17 +121,6 @@ class _SimpleType:
         self.type = ARFF_TYPES[type_text]
     def parse(self, text):
         return self.type(text)
-
-def _field_type(name, type_text):
-    if type_text in ARFF_TYPES:
-        return _SimpleType(name, type_text)
-    
-    if type_text.startswith('{'):
-        return _Nominal(name, type_text)
-    
-    raise ValueError("Unrecognized attribute type: %s" % type_text)
-
-    #'date': date_format,
 
 
 def _parse_types(row, fields):
@@ -173,6 +162,7 @@ def load(fname):
 class Reader:
     def __init__(self, lines_iterator):
         self.lines_iterator = lines_iterator
+        self.arfftypes = dict(ARFF_TYPES)
     def __iter__(self):
         lines_iterator = self.lines_iterator
         fields = []
@@ -193,7 +183,7 @@ class Reader:
                 name = space_separated[1]
                 field_type_text = space_separated[2].strip()
                 
-                fields.append(_field_type(name, field_type_text))
+                fields.append(self._field_type(name, field_type_text))
         
         self.fields = fields
         
@@ -204,6 +194,17 @@ class Reader:
             typed_row = row_parser.parse(row)
             yield typed_row
 
+    def _field_type(self, name, type_text):
+        if type_text in self.arfftypes:
+            return _SimpleType(name, type_text)
+        
+        if type_text.startswith('{'):
+            return _Nominal(name, type_text)
+        
+        raise ValueError("Unrecognized attribute type: %s" % type_text)
+
+        #'date': date_format,
+
 
 def _convert_row(row):
     items = [repr(item) for item in row]
@@ -212,7 +213,7 @@ def _convert_row(row):
 def dumps(*args, **kwargs):
     items = []
     rows_gen = (row for row in dump_lines(*args, **kwargs))
-    return u(os.linesep).join(rows_gen)
+    return _u(os.linesep).join(rows_gen)
 
     
     

@@ -6,9 +6,17 @@ import unittest
 import os
 
 import arff
-from arff import u
 
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+# python2/3 compatible unicode
+def u(text):
+    if str == bytes:
+        return text.decode('utf-8')
+    else:
+        # python 3
+        return text
 
 
 class TestArff(unittest.TestCase):
