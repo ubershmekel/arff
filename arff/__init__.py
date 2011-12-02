@@ -1,6 +1,10 @@
 '''
 Weka arff file type reader for python.
 
+http://code.google.com/p/arff/
+
+http://code.google.com/p/arff/wiki/Documentation
+
 Usage:
 
     >>> import arff
@@ -42,6 +46,7 @@ results in the creation of this file:
 
 
 -----
+
 
 supports arff types: numeric, integer, real, string
 supports python types: int, str, float
