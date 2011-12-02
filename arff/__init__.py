@@ -55,7 +55,6 @@ it useful and/or you have suggestions. ubershmekel at gmail
 
 Based on http://weka.wikispaces.com/ARFF+%28stable+version%29
 
-
 '''
 
 import os
@@ -84,6 +83,7 @@ PYTHON_TYPES = {
     float: 'real',
     int: 'integer',
     str: 'string',
+    bool: '{True, False}'
 }
 
 # python2/3 compatible unicode
