@@ -9,8 +9,8 @@ Usage:
 
     >>> import arff
     >>> for row in arff.load('example.arff'):
-    ...     print(row.hair_color)
-    ...     print(row[-1])
+    ...     x = row.hair_color
+    ...     y = row[-1]
     ...
     >>> print(list(arff.load('example.arff')))
     [[Row(hair_color='blonde', age=17.2, patno=1),
