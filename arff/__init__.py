@@ -66,6 +66,7 @@ import os
 import io
 import csv
 from collections import namedtuple
+import shlex
 
 COMMENT = '%'
 SPECIAL = '@'
@@ -76,7 +77,43 @@ DATA = '@data'
 def _str_remove_quotes(obj):
     return str(obj[1:-1])
 
+def GenerateRowBase(field_names):
+    """
+    Rows should behave like so:
+        * list(row) should give the values in order
+        * row['class'] should get the column named 'class'
+        * row[i] should get the i-th column
+        * row.balls should get the column named 'balls'
+    """
+    class Row:
+        def __init__(self, *values):
+            # iter access
+            self._values = list(values)
+            # names access
+            self._data = dict(zip(field_names, self._values))
+            # numbered order access
+            self._data.update(enumerate(self._values))
+            
+        def __getattr__(self, key):
+            if key in self._data:
+                return self._data[key]
+            else:
+                return object.__getattr__(self, key)
+
+        def __getitem__(self, key):
+            return self._data[key]
+
+        def __repr__(self):
+            return '<Row(%s)>' % ','.join([repr(i) for i in self._values])
+
+        def __iter__(self):
+            return iter(self._values)
+
+        def __len__(self):
+            return len(self._values)
     
+    return Row
+
 ARFF_TYPES = {
     'numeric': float,
     'integer': int,
@@ -124,6 +161,8 @@ def _u(text):
         # python 3
         return text
     
+def _csv_split(line):
+    return next(csv.reader([line]))
 
 class Nominal(str):
     """Use this class to wrap strings which are intended to be nominals
@@ -138,11 +177,11 @@ class _ParsedNominal:
         self.name = name
         self.type_text = type_text
         values_str = type_text.strip('{} ')
-        self.enum = values_str.split()
-        self.enum = [opt.strip(', ') for opt in self.enum]
+        self.enum = _csv_split(values_str)
+        self.enum = [opt.strip(', \'"') for opt in self.enum]
     
     def parse(self, text):
-        if text in self.enum:
+        if text.strip('\'"') in self.enum:
             return text
         else:
             raise ValueError("'%s' is not in {%s}" % (text, self.enum))
@@ -165,21 +204,22 @@ def _parse_types(row, fields):
 class _RowParser:
     def __init__(self, fields):
         self.fields = fields
-        self.tuple = namedtuple('Row', [f.name for f in fields])
+        #self.tuple = namedtuple('Row', [f.name for f in fields])
+        self.rowgen = GenerateRowBase([f.name for f in fields])
     
     def parse(self, row):
         values = []
         for f, item in zip(self.fields, row):
             values.append(f.parse(item))
         
-        return self.tuple(*values)
+        return self.rowgen(*values)
 
 def loads(text):
     if bytes == str:
-        if type(text) != unicode:
+        if not isinstance(text, unicode):
             raise ValueError('arff.loads works with unicode strings only')
     else:
-        if type(text) != str:
+        if not isinstance(text, str):
             raise ValueError('arff.loads works with strings only')
     lines_iterator = io.StringIO(text)
     for item in Reader(lines_iterator):
@@ -220,9 +260,11 @@ class Reader:
         self.fields = fields
         
         # data
-        reader = csv.reader(lines_iterator)
         row_parser = _RowParser(fields)
-        for row in reader:
+        for line in lines_iterator:
+            if line.startswith(COMMENT):
+                continue
+            row = _csv_split(line)
             typed_row = row_parser.parse(row)
             yield typed_row
 

@@ -35,13 +35,14 @@ blue, 18.2, 3
             ['blue', 27.2, 2],
             ['blue', 18.2, 3],
             ]
-            
+
         result = list(arff.loads(text))
         list_result = [list(row) for row in result]
         
         self.assertEqual(list_result, expected)
         
         self.assertEqual(result[0].hair_color, 'blonde')
+        self.assertEqual(result[0]['hair_color'], 'blonde')
         
     def test_write(self):
         table = [
@@ -84,7 +85,20 @@ blue, 18.2, 3
         reparsed_data = [list(row) for row in reparsed_data]
         
         self.assertEqual(data, reparsed_data)
+
+    def test_standard_files(self):
+        # this file contains attributes named "class" and comments after
+        # the data
+        fname = os.path.join(SRC_DIR, 'ionosphere.arff')
+        data = list(arff.load(fname))        
         
+        fname = os.path.join(SRC_DIR, 'sonar.arff')
+        data = list(arff.load(fname))
+
+        # contains nominals with quotes
+        fname = os.path.join(SRC_DIR, 'glass.arff')
+        data = list(arff.load(fname))
+
         
 
 if __name__ == '__main__':
