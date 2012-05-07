@@ -19,7 +19,7 @@ import sys
 import arff
 DOCUMENTATION = arff.__doc__
 
-VERSION = '0.6'
+VERSION = '0.8'
 
 SETUP_DICT = dict(
     name='arff',
