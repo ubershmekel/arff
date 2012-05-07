@@ -9,14 +9,14 @@ Usage:
 
     >>> import arff
     >>> for row in arff.load('example.arff'):
-    ...     x = row.hair_color
-    ...     y = row[-1]
+    ...     print(row.hair_color)
+    ...     print(row[-1])
     ...
     >>> print(list(arff.load('example.arff')))
     [[Row(hair_color='blonde', age=17.2, patno=1),
      Row(hair_color='blue', age=27.2, patno=2),
      Row(hair_color='blue', age=18.2, patno=3)]
-    
+
      
 
 Where this is the example file:
@@ -91,6 +91,31 @@ PYTHON_TYPES = {
     bool: '{True, False}'
 }
 
+DEFAULT_REPRS = {
+                }
+
+def add_optional_types():
+    try:
+        import numpy
+        PYTHON_TYPES[numpy.float64] = 'real'
+        PYTHON_TYPES[numpy.int64] = 'integer'
+    except ImportError:
+        pass
+
+    try:
+        PYTHON_TYPES[long] = 'integer'
+        DEFAULT_REPRS[long] = str
+    except NameError:
+        pass
+
+    try:
+        PYTHON_TYPES[unicode] = 'string'
+        DEFAULT_REPRS[unicode] = lambda x: x.encode('utf-8')
+    except NameError:
+        pass
+
+add_optional_types()
+
 # python2/3 compatible unicode
 def _u(text):
     if str == bytes:
@@ -99,21 +124,28 @@ def _u(text):
         # python 3
         return text
     
+
+class Nominal(str):
+    """Use this class to wrap strings which are intended to be nominals
+    and shouldn't have enclosing quote signs."""
+    def __repr__(self):
+        return self
+
     
-class _Nominal:
-    '''an enum in arff'''
+class _ParsedNominal:
+    '''Parses and validates the arff enum'''
     def __init__(self, name, type_text):
         self.name = name
         self.type_text = type_text
         values_str = type_text.strip('{} ')
-        self.options = values_str.split()
-        self.options = [opt.strip(', ') for opt in self.options]
+        self.enum = values_str.split()
+        self.enum = [opt.strip(', ') for opt in self.enum]
     
     def parse(self, text):
-        if text in self.options:
+        if text in self.enum:
             return text
         else:
-            raise ValueError("'%s' is not in {%s}" % (text, self.options))
+            raise ValueError("'%s' is not in {%s}" % (text, self.enum))
 
 class _SimpleType:
     def __init__(self, name, type_text):
@@ -199,7 +231,7 @@ class Reader:
             return _SimpleType(name, type_text)
         
         if type_text.startswith('{'):
-            return _Nominal(name, type_text)
+            return _ParsedNominal(name, type_text)
         
         raise ValueError("Unrecognized attribute type: %s" % type_text)
 
@@ -252,14 +284,23 @@ class _LineWriter:
         
             yield "%s %s" % (RELATION, self.relation)
         
-            for name, f in zip(self.names, ftypes):
-                yield "%s %s %s" % (ATTRIBUTE, name, f)
+            for name, ft in zip(self.names, ftypes):
+                yield "%s %s %s" % (ATTRIBUTE, name, ft)
         
             yield DATA
         
-        yield _convert_row(row)
-        
-
+        yield self._convert_row(row)
+    
+    def _convert_obj(self, obj):
+        typ = type(obj)
+        if typ in DEFAULT_REPRS:
+            return DEFAULT_REPRS[typ](obj)
+        else:
+            return repr(obj)
+    
+    def _convert_row(self, row):
+        items = [self._convert_obj(item) for item in row]
+        return ','.join(items)
 
 class Writer(_LineWriter):
     def __init__(self, fname, relation='untitled', names=None):

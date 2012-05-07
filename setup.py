@@ -30,6 +30,7 @@ SETUP_DICT = dict(
     url='http://code.google.com/p/arff/',
     description='Python package for reading and writing Weka arff files',
     long_description=DOCUMENTATION,
+    test_suite='arff.test.test_arff',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
