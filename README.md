@@ -4,7 +4,7 @@ To install this or any python package from source use:
 
 You can also use pip:
 
-    pip arff
+    pip install arff
 
 
 Arff files are very much like CSV files except they have typing information.
